@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { supabase } from './src/services/supabase';
 import { AuthService } from './src/services/api';
 import { User } from './src/types';
 
@@ -25,14 +26,30 @@ export default function App() {
 
   useEffect(() => {
     checkAuth();
+    
+    // Listen for auth changes
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[App] Auth state changed:', event, session?.user?.email);
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        const currentUser = await AuthService.getCurrentUser();
+        setUser(currentUser);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
   const checkAuth = async () => {
     try {
       const currentUser = await AuthService.getCurrentUser();
+      console.log('[App] Initial auth check:', currentUser?.email || 'Not logged in');
       setUser(currentUser);
     } catch (error) {
-      console.error('Auth check failed:', error);
+      console.error('[App] Auth check failed:', error);
     } finally {
       setLoading(false);
     }

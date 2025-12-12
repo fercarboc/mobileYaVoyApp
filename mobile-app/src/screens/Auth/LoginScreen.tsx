@@ -34,7 +34,8 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await AuthService.signIn(email, password);
-      // Navigation handled automatically by App.tsx
+      console.log('[LoginScreen] Login successful');
+      // Navigation handled automatically by auth listener in App.tsx
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Error al iniciar sesión');
     } finally {

@@ -132,7 +132,7 @@ export default function HomeScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
         <View>
@@ -292,23 +292,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.lightGray,
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginRight: 8,
+    borderRadius: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    marginRight: 10,
     borderWidth: 2,
     borderColor: 'transparent',
+    minHeight: 44,
   },
   categoryPillActive: {
     backgroundColor: `${COLORS.primary}15`,
     borderColor: COLORS.primary,
   },
   categoryIcon: {
-    fontSize: 16,
-    marginRight: 6,
+    fontSize: 20,
+    marginRight: 8,
   },
   categoryText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     color: COLORS.dark,
   },
@@ -317,7 +318,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 100,
   },
   emptyContainer: {
     alignItems: 'center',

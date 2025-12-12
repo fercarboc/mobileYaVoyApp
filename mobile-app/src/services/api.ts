@@ -25,9 +25,24 @@ const mapDbRoleToUserRole = (dbRole: DBVoyUserRole): UserRole => {
 export const AuthService = {
   // Sign In
   signIn: async (email: string, password: string): Promise<User> => {
+    console.log('[SignIn] Attempting login for:', email);
+    
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    
+    if (error) {
+      console.log('[SignIn] Auth error:', error.message);
+      if (error.message.includes('Invalid login credentials')) {
+        throw new Error('Email o contraseña incorrectos');
+      }
+      if (error.message.includes('Email not confirmed')) {
+        throw new Error('Debes confirmar tu email antes de iniciar sesión');
+      }
+      throw new Error(error.message);
+    }
+    
     if (!data.user) throw new Error('No user found');
+
+    console.log('[SignIn] Auth successful, loading profile for:', data.user.id);
 
     const { data: userProfile, error: profileError } = await supabase
       .from('VoyUsers')
@@ -36,7 +51,7 @@ export const AuthService = {
       .maybeSingle();
 
     if (!userProfile) {
-      // Self-healing: create profile if missing
+      console.log('[SignIn] No profile found, creating one');
       const { data: newProfile, error: createError } = await supabase
         .from('VoyUsers')
         .insert({
@@ -44,18 +59,25 @@ export const AuthService = {
           full_name: data.user.user_metadata?.full_name || email.split('@')[0],
           email: email,
           role: 'WORKER',
-          city: 'Madrid',
-          district: 'Centro',
-          neighborhood: 'Sol'
+          city: 'Madrid'
         })
         .select()
         .single();
         
-      if (createError) throw new Error('Error creando perfil');
+      if (createError) {
+        console.log('[SignIn] Error creating profile:', createError.message, createError.code);
+        throw new Error(`Error creando perfil: ${createError.message}`);
+      }
+      console.log('[SignIn] Profile created successfully');
       return mapUserProfile(newProfile);
     }
 
-    if (profileError) throw new Error('Error cargando perfil');
+    if (profileError) {
+      console.log('[SignIn] Error loading profile:', profileError.message);
+      throw new Error('Error cargando perfil');
+    }
+    
+    console.log('[SignIn] Profile loaded successfully');
     return mapUserProfile(userProfile);
   },
 
@@ -68,45 +90,72 @@ export const AuthService = {
     district: string,
     neighborhood: string
   ): Promise<User> => {
+    console.log('[SignUp] Starting signup for:', email);
+    
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName } }
+      options: { 
+        data: { full_name: fullName },
+        emailRedirectTo: undefined
+      }
     });
 
-    if (error) throw error;
+    if (error) {
+      console.log('[SignUp] Auth error:', error.message);
+      if (error.message.includes('User already registered')) {
+        throw new Error('Este email ya está registrado. Intenta iniciar sesión.');
+      }
+      if (error.message.includes('Password')) {
+        throw new Error('La contraseña debe tener al menos 6 caracteres.');
+      }
+      throw new Error(error.message);
+    }
+    
     if (!data.user) throw new Error('No se pudo crear el usuario');
+    
+    console.log('[SignUp] Auth user created:', data.user.id, 'Session:', !!data.session);
     
     if (data.user && !data.session) {
       throw new Error('¡Registro exitoso! Revisa tu email para confirmar tu cuenta.');
     }
 
+    const profileData: any = {
+      auth_user_id: data.user.id,
+      full_name: fullName,
+      email: email,
+      role: role,
+      city: 'Madrid'
+    };
+
+    if (district) profileData.district = district;
+    if (neighborhood) profileData.neighborhood = neighborhood;
+
+    console.log('[SignUp] Creating profile with data:', profileData);
+    
     const { data: newProfile, error: dbError } = await supabase
       .from('VoyUsers')
-      .insert({
-        auth_user_id: data.user.id,
-        full_name: fullName,
-        email: email,
-        role: role,
-        district: district,
-        neighborhood: neighborhood,
-        city: 'Madrid'
-      })
+      .insert(profileData)
       .select()
       .single();
 
     if (dbError) {
-      // Check if profile already exists
+      console.log('[SignUp] Database error:', dbError.message, dbError.code, dbError.details);
+      
       const { data: existingProfile } = await supabase
         .from('VoyUsers')
         .select('*')
         .eq('auth_user_id', data.user.id)
-        .single();
+        .maybeSingle();
       
-      if (existingProfile) return mapUserProfile(existingProfile);
-      throw new Error('Error creando perfil de usuario');
+      if (existingProfile) {
+        console.log('[SignUp] Profile already exists, using it');
+        return mapUserProfile(existingProfile);
+      }
+      throw new Error(`Error creando perfil: ${dbError.message}`);
     }
 
+    console.log('[SignUp] Profile created successfully');
     return mapUserProfile(newProfile);
   },
 
@@ -355,10 +404,10 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 // Helper to map user profile from DB
 function mapUserProfile(profile: any): User {
   return {
-    id: profile.id,
+    id: profile.user_id || profile.id,
     full_name: profile.full_name,
     email: profile.email,
-    phone: profile.phone,
+    phone: profile.phone || '',
     district: profile.district || 'Madrid',
     neighborhood: profile.neighborhood || 'Centro',
     skills: [],

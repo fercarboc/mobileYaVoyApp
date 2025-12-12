@@ -44,7 +44,9 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       await AuthService.signUp(email, password, fullName, role, district, neighborhood);
-      Alert.alert('¡Éxito!', 'Cuenta creada correctamente');
+      console.log('[RegisterScreen] Registration successful');
+      Alert.alert('¡Éxito!', 'Cuenta creada correctamente. Iniciando sesión...');
+      // Navigation handled automatically by auth listener in App.tsx
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Error al registrarse');
     } finally {

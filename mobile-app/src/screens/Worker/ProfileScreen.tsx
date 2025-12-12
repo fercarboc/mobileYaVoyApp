@@ -52,7 +52,7 @@ export default function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <ScrollView>
         {/* Header */}
         <View style={styles.header}>
