@@ -1,0 +1,7 @@
+{
+  "name": "YaVoy_App",
+  "description": "Plataforma de micro-tareas locales en Madrid para conectar vecinos.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "YaVoy",
+    "slug": "yavoy-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yavoy.mobile",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "YaVoy necesita tu ubicación para mostrar trabajos cerca de ti.",
+        "NSLocationAlwaysUsageDescription": "YaVoy necesita tu ubicación para notificarte de trabajos cercanos."
+      }
+    },
+    "android": {
+      "package": "com.yavoy.mobile",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "NOTIFICATIONS"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "YaVoy necesita tu ubicación para mostrar trabajos cerca de ti."
+        }
+      ],
+      "expo-asset",
+      "expo-font"
+    ]
+  }
+}
