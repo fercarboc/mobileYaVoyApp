@@ -7,6 +7,7 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -102,7 +103,7 @@ export default function ChatsScreen() {
 
       // Para cada chat, obtener el último mensaje y contar no leídos
       const chatsWithMessages = await Promise.all(
-        (chatsData || []).map(async (chat) => {
+        (chatsData || []).map(async (chat: any) => {
           // Último mensaje
           const { data: lastMessage } = await supabase
             .from('VoyMessages')
@@ -121,7 +122,21 @@ export default function ChatsScreen() {
             .is('read_at', null);
 
           return {
-            ...chat,
+            id: chat.id,
+            job_id: chat.job_id,
+            company_user_id: chat.company_user_id,
+            helper_user_id: chat.helper_user_id,
+            created_at: chat.created_at,
+            job: chat.job?.[0] ? {
+              id: chat.job[0].id,
+              title: chat.job[0].title,
+              status: chat.job[0].status,
+            } : undefined,
+            company: chat.company?.[0] ? {
+              id: chat.company[0].id,
+              full_name: chat.company[0].full_name,
+              email: chat.company[0].email,
+            } : undefined,
             last_message: lastMessage || undefined,
             unread_count: unreadCount || 0,
           };

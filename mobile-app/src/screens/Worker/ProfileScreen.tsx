@@ -12,10 +12,11 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { COLORS } from '@/constants';
 import { supabase } from '@/services/supabase';
 
@@ -37,6 +38,7 @@ interface UserProfile {
 }
 
 export default function ProfileScreen() {
+  const navigation = useNavigation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -193,21 +195,17 @@ export default function ProfileScreen() {
         return;
       }
 
-      // Crear FormData con imagen comprimida
-      const formData = new FormData();
-      const filename = `${user.id}_${type}_${Date.now()}.jpg`;
+      // Crear nombre de archivo con carpeta del usuario
+      const filename = `${user.id}/${type}_${Date.now()}.jpg`;
       
-      // @ts-ignore - FormData accepts uri in React Native
-      formData.append('file', {
-        uri: compressedUri,
-        name: filename,
-        type: 'image/jpeg',
-      });
-
+      // Leer el archivo como ArrayBuffer para React Native
+      const response = await fetch(compressedUri);
+      const arrayBuffer = await response.arrayBuffer();
+      
       // Upload to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('user-documents')
-        .upload(filename, formData, {
+        .upload(filename, arrayBuffer, {
           contentType: 'image/jpeg',
           upsert: true,
         });
@@ -227,6 +225,12 @@ export default function ProfileScreen() {
         .eq('auth_user_id', user.id);
 
       if (updateError) throw updateError;
+
+      // Actualizar el estado local para mostrar la imagen inmediatamente
+      setProfile(prev => prev ? {
+        ...prev,
+        [updateField]: publicUrl
+      } : null);
 
       Alert.alert('✅ Éxito', `${type === 'document' ? 'Documento' : 'Selfie'} subido correctamente`);
       loadProfile();
@@ -445,6 +449,20 @@ export default function ProfileScreen() {
               <Text style={styles.infoValue}>{profile?.country || 'No especificado'}</Text>
             </View>
           </View>
+        </View>
+
+        {/* Notifications and Emergency */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Notificaciones y Emergencia</Text>
+          
+          <TouchableOpacity 
+            style={styles.optionCard}
+            onPress={() => (navigation as any).navigate('Notifications')}
+          >
+            <Ionicons name="notifications-outline" size={20} color={COLORS.dark} />
+            <Text style={styles.optionText}>Notificaciones y Alarma</Text>
+            <Ionicons name="chevron-forward" size={20} color={COLORS.gray} />
+          </TouchableOpacity>
         </View>
 
         {/* Document Photos Section */}

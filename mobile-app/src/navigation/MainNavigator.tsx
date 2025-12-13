@@ -22,6 +22,12 @@ import EconomicsScreen from '../screens/Company/EconomicsScreen';
 import CompanyProfileScreen from '../screens/Company/CompanyProfileScreen';
 import CandidatesScreen from '../screens/Company/CandidatesScreen';
 
+// Particular Screens
+import ParticularProfileScreen from '../screens/Particular/ParticularProfileScreen';
+
+// Shared Screens
+import NotificationsScreen from '../screens/Shared/NotificationsScreen';
+
 // Chat Screen
 import ChatScreen from '../screens/Chat/ChatScreen';
 
@@ -38,6 +44,7 @@ export type MainTabParamList = {
   Subscriptions: undefined;
   Economics: undefined;
   Profile: undefined;
+  Notifications: undefined;
 };
 
 export type HomeStackParamList = {
@@ -66,12 +73,18 @@ export type ChatsStackParamList = {
   Chat: { jobId: string; otherUserId: string; otherUserName: string };
 };
 
+export type ProfileStackParamList = {
+  ProfileMain: undefined;
+  Notifications: undefined;
+};
+
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const HomeStack = createNativeStackNavigator<HomeStackParamList>();
 const MyJobsStack = createNativeStackNavigator<MyJobsStackParamList>();
 const MyAdsStack = createNativeStackNavigator<MyAdsStackParamList>();
 const CandidatesStack = createNativeStackNavigator<CandidatesStackParamList>();
 const ChatsStack = createNativeStackNavigator<ChatsStackParamList>();
+const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
 
 // Worker Home Stack with Job Detail and Chat
 function WorkerHomeStackNavigator() {
@@ -162,7 +175,77 @@ function ChatsStackNavigator() {
     </ChatsStack.Navigator>
   );
 }
+// Worker Profile Stack with Notifications
+function WorkerProfileStackNavigator() {
+  return (
+    <ProfileStack.Navigator>
+      <ProfileStack.Screen 
+        name="ProfileMain" 
+        component={WorkerProfileScreen}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen 
+        name="Notifications" 
+        component={NotificationsScreen}
+        options={{ headerShown: false }}
+      />
+    </ProfileStack.Navigator>
+  );
+}
 
+// Company Profile Stack with Notifications
+function CompanyProfileStackNavigator() {
+  return (
+    <ProfileStack.Navigator>
+      <ProfileStack.Screen 
+        name="ProfileMain" 
+        component={CompanyProfileScreen}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen 
+        name="Notifications" 
+        component={NotificationsScreen}
+        options={{ headerShown: false }}
+      />
+    </ProfileStack.Navigator>
+  );
+}
+
+// Particular Profile Stack with Notifications
+function ParticularProfileStackNavigator() {
+  return (
+    <ProfileStack.Navigator>
+      <ProfileStack.Screen 
+        name="ProfileMain" 
+        component={ParticularProfileScreen}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen 
+        name="Notifications" 
+        component={NotificationsScreen}
+        options={{ headerShown: false }}
+      />
+    </ProfileStack.Navigator>
+  );
+}
+
+// Admin Profile Stack with Notifications
+function AdminProfileStackNavigator() {
+  return (
+    <ProfileStack.Navigator>
+      <ProfileStack.Screen 
+        name="ProfileMain" 
+        component={AdminProfileScreen}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen 
+        name="Notifications" 
+        component={NotificationsScreen}
+        options={{ headerShown: false }}
+      />
+    </ProfileStack.Navigator>
+  );
+}
 // MyAds Stack Navigator (for COMPANY)
 function MyAdsStackNavigator() {
   return (
@@ -251,7 +334,7 @@ function WorkerNavigator() {
       />
       <Tab.Screen 
         name="Profile" 
-        component={WorkerProfileScreen}
+        component={WorkerProfileStackNavigator}
         options={{ tabBarLabel: 'Perfil' }}
       />
     </Tab.Navigator>
@@ -325,7 +408,74 @@ function CompanyNavigator() {
       />
       <Tab.Screen 
         name="Profile" 
-        component={CompanyProfileScreen}
+        component={CompanyProfileStackNavigator}
+        options={{ tabBarLabel: 'Perfil' }}
+      />
+    </Tab.Navigator>
+  );
+}
+
+// Particular Navigator
+function ParticularNavigator() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: COLORS.gray,
+        tabBarStyle: {
+          paddingBottom: 35,
+          paddingTop: 8,
+          height: 90,
+          borderTopWidth: 1,
+          borderTopColor: '#e5e7eb',
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+        },
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName: any = 'home';
+
+          if (route.name === 'Home') {
+            iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'MyAds') {
+            iconName = focused ? 'megaphone' : 'megaphone-outline';
+          } else if (route.name === 'Candidates') {
+            iconName = focused ? 'people' : 'people-outline';
+          } else if (route.name === 'Subscriptions') {
+            iconName = focused ? 'star' : 'star-outline';
+          } else if (route.name === 'Profile') {
+            iconName = focused ? 'person' : 'person-outline';
+          }
+
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+      })}
+    >
+      <Tab.Screen 
+        name="Home" 
+        component={CompanyHomeScreen}
+        options={{ tabBarLabel: 'Inicio' }}
+      />
+      <Tab.Screen 
+        name="MyAds" 
+        component={MyAdsStackNavigator}
+        options={{ tabBarLabel: 'Anuncios' }}
+      />
+      <Tab.Screen 
+        name="Candidates" 
+        component={CandidatesStackNavigator}
+        options={{ tabBarLabel: 'Candidatos' }}
+      />
+      <Tab.Screen 
+        name="Subscriptions" 
+        component={SubscriptionsScreen}
+        options={{ tabBarLabel: 'Bonos' }}
+      />
+      <Tab.Screen 
+        name="Profile" 
+        component={ParticularProfileStackNavigator}
         options={{ tabBarLabel: 'Perfil' }}
       />
     </Tab.Navigator>
@@ -371,7 +521,7 @@ function AdminNavigator() {
       />
       <Tab.Screen 
         name="Profile" 
-        component={AdminProfileScreen}
+        component={AdminProfileStackNavigator}
         options={{ tabBarLabel: 'Perfil' }}
       />
     </Tab.Navigator>
@@ -382,8 +532,10 @@ function AdminNavigator() {
 export default function MainNavigator({ userRole }: { userRole?: UserRole }) {
   if (userRole === 'ADMIN') {
     return <AdminNavigator />;
-  } else if (userRole === 'COMPANY' || userRole === 'PARTICULAR') {
+  } else if (userRole === 'COMPANY') {
     return <CompanyNavigator />;
+  } else if (userRole === 'PARTICULAR') {
+    return <ParticularNavigator />;
   } else {
     // Default to Worker navigator for HELPER role or undefined
     return <WorkerNavigator />;

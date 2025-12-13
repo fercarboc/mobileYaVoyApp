@@ -120,4 +120,10 @@ export const COLORS = {
   lightGray: '#f1f5f9',
   white: '#ffffff',
   black: '#000000',
+  // Nuevos colores para las pantallas Worker
+  background: '#f8fafc', // Fondo general
+  surface: '#ffffff', // Superficie de tarjetas
+  text: '#1e293b', // Texto principal
+  textSecondary: '#64748b', // Texto secundario
+  border: '#e2e8f0', // Bordes
 };

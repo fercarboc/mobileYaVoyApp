@@ -146,7 +146,8 @@ export default function JobDetailScreen({ route, navigation }: JobDetailScreenPr
           {
             text: 'Ver mis candidaturas',
             onPress: () => {
-              navigation.navigate('MyJobs');
+              // @ts-ignore - Navigate to MyJobs tab
+              navigation.getParent()?.navigate('MyJobs');
             },
           },
           { 

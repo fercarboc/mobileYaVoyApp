@@ -57,6 +57,15 @@ export default function EconomicsScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Get VoyUsers id
+      const { data: voyUser } = await supabase
+        .from('VoyUsers')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      if (!voyUser) return;
+
       // Calculate date range based on period
       const now = new Date();
       let startDate = new Date();
@@ -73,7 +82,7 @@ export default function EconomicsScreen() {
       const { data: transactionsData, error: transError } = await supabase
         .from('VoyEconomicTransactions')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', voyUser.id)
         .eq('type', 'INCOME')
         .gte('created_at', startDate.toISOString())
         .order('created_at', { ascending: false });
@@ -96,7 +105,7 @@ export default function EconomicsScreen() {
             updated_at
           )
         `)
-        .eq('helper_user_id', user.id)
+        .eq('helper_user_id', voyUser.id)
         .eq('status', 'ACCEPTED');
 
       if (jobsError) throw jobsError;

@@ -159,7 +159,9 @@ export default function CompanyHomeScreen() {
   };
 
   const handleCreateJob = () => {
-    navigation.navigate('MyAds' as never, { screen: 'CreateJob' } as never);
+    // Navigate to MyAds tab, which will show MyAdsList, then user can tap + button
+    // @ts-ignore
+    navigation.getParent()?.navigate('MyAds');
   };
 
   const handleBuySubscription = () => {

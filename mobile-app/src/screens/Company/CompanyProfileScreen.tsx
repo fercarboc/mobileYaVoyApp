@@ -11,12 +11,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { AuthService } from '@/services/api';
 import { User } from '@/types';
 import { COLORS } from '@/constants';
 import { supabase } from '@/services/supabase';
 
 export default function CompanyProfileScreen() {
+  const navigation = useNavigation();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -281,10 +283,10 @@ export default function CompanyProfileScreen() {
 
           <TouchableOpacity 
             style={styles.optionCard}
-            onPress={() => Alert.alert('Notificaciones', 'Función en desarrollo')}
+            onPress={() => (navigation as any).navigate('Notifications')}
           >
             <Ionicons name="notifications-outline" size={20} color={COLORS.dark} />
-            <Text style={styles.optionText}>Notificaciones</Text>
+            <Text style={styles.optionText}>Notificaciones y Alarma</Text>
             <Ionicons name="chevron-forward" size={20} color={COLORS.gray} />
           </TouchableOpacity>
 
@@ -395,7 +397,7 @@ export default function CompanyProfileScreen() {
 
                 <View style={styles.infoBox}>
                   <Ionicons name="information-circle" size={20} color={COLORS.info} />
-                  <Text style={styles.infoText}>
+                  <Text style={styles.infoBoxText}>
                     Envía los documentos escaneados a verificacion@yavoy.com indicando tu email registrado.
                   </Text>
                 </View>
@@ -731,7 +733,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     gap: 8,
   },
-  infoText: {
+  infoBoxText: {
     flex: 1,
     fontSize: 13,
     color: COLORS.dark,

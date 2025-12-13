@@ -280,7 +280,7 @@ export default function MyAdsScreen() {
         </View>
         <TouchableOpacity 
           style={styles.addButton}
-          onPress={() => navigation.navigate('CreateJob')}
+          onPress={() => navigation.navigate('CreateJob' as any)}
         >
           <Ionicons name="add" size={24} color={COLORS.white} />
         </TouchableOpacity>
@@ -331,7 +331,7 @@ export default function MyAdsScreen() {
           {jobs.length === 0 && (
             <TouchableOpacity 
               style={styles.createButton}
-              onPress={() => navigation.navigate('CreateJob')}
+              onPress={() => navigation.navigate('CreateJob' as any)}
             >
               <Ionicons name="add" size={20} color={COLORS.white} />
               <Text style={styles.createButtonText}>Publicar Anuncio</Text>

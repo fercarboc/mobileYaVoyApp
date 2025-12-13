@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MyJobsStackParamList } from '@/navigation/MainNavigator';
 import { COLORS, JOB_CATEGORIES } from '@/constants';
@@ -59,6 +59,15 @@ export default function MyJobsScreen() {
       loadApplications();
     }
   }, [profileId]);
+
+  // Recargar cuando vuelves a esta pantalla
+  useFocusEffect(
+    React.useCallback(() => {
+      if (profileId) {
+        loadApplications();
+      }
+    }, [profileId])
+  );
 
   const loadProfile = async () => {
     try {
@@ -115,7 +124,26 @@ export default function MyJobsScreen() {
       if (data) {
         console.log('Applications loaded:', data.length);
         console.log('Applications data:', JSON.stringify(data, null, 2));
-        setApplications(data as any);
+        
+        // Transformar arrays job[] y creator[] a objetos
+        const transformedData = data.map((app: any) => ({
+          ...app,
+          job: app.job?.[0] ? {
+            title: app.job[0].title,
+            category: app.job[0].category,
+            job_type: app.job[0].job_type,
+            city: app.job[0].city,
+            district: app.job[0].district,
+            status: app.job[0].status,
+            creator_user_id: app.job[0].creator_user_id,
+            creator: app.job[0].creator?.[0] ? {
+              id: app.job[0].creator[0].id,
+              full_name: app.job[0].creator[0].full_name,
+            } : undefined,
+          } : undefined,
+        }));
+        
+        setApplications(transformedData as any);
       }
     } catch (error) {
       console.error('Error loading applications:', error);
@@ -152,7 +180,13 @@ export default function MyJobsScreen() {
               // Actualizar estado de la aplicación localmente
               setApplications(prev => prev.map(app => 
                 app.id === applicationId 
-                  ? { ...app, job: app.job ? { ...app.job, status: 'IN_PROGRESS' } : null }
+                  ? { 
+                      ...app, 
+                      job: app.job ? { 
+                        ...app.job, 
+                        status: 'IN_PROGRESS' as const
+                      } : app.job
+                    }
                   : app
               ));
 

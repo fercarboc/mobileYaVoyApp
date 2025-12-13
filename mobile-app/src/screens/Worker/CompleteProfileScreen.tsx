@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS } from '@/constants';
 import { supabase } from '@/services/supabase';
@@ -106,7 +106,7 @@ export default function CompleteProfileScreen() {
       
       compressedUri = manipResult.uri;
       const fileInfo = await FileSystem.getInfoAsync(compressedUri);
-      fileSize = fileInfo.size || 0;
+      fileSize = (fileInfo as any).size || 0;
       quality = Math.max(0.3, quality - 0.15);
       attempts++;
     }
@@ -123,19 +123,17 @@ export default function CompleteProfileScreen() {
     if (!user) throw new Error('Usuario no autenticado');
 
     const compressedUri = await compressImage(uri, type);
-    const formData = new FormData();
-    const filename = `${user.id}_${type}_${Date.now()}.jpg`;
     
-    // @ts-ignore
-    formData.append('file', {
-      uri: compressedUri,
-      name: filename,
-      type: 'image/jpeg',
-    });
+    // Crear nombre de archivo con carpeta del usuario
+    const filename = `${user.id}/${type}_${Date.now()}.jpg`;
+    
+    // Leer el archivo como ArrayBuffer para React Native
+    const response = await fetch(compressedUri);
+    const arrayBuffer = await response.arrayBuffer();
 
     const { error: uploadError } = await supabase.storage
       .from('user-documents')
-      .upload(filename, formData, {
+      .upload(filename, arrayBuffer, {
         contentType: 'image/jpeg',
         upsert: true,
       });
