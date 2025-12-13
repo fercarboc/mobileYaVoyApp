@@ -117,12 +117,7 @@
 - `VoyJobAssignments`
 
 ### ⚠️ Pendientes de verificar/crear:
-- `VoyCompanySubscriptions` (CRÍTICA para bonos)
-- `VoyPayments` (tracking de pagos)
-- `VoyNotifications` (notificaciones)
-- `VoyPlatformSettings` (configuración admin)
-- `VoySectors` (sectores dinámicos desde DB)
-- `VoyMicroTasks` (tareas por sector)
+- 
 - `VoyWorkerLocation` (geolocalización - futuro)
 - `VoyIdentityVerification` (verificación DNI - futuro)
 
@@ -141,7 +136,12 @@
 1. Crear proyecto React Native + Expo nuevo
 2. Reutilizar:
    - ✅ `types.ts` (corregido)
-   - ✅ `constants.ts` (completo)
+   - ✅ `constants.ts` (completo)`VoyCompanySubscriptions` (CRÍTICA para bonos)
+- `VoyPayments` (tracking de pagos)
+- `VoyNotifications` (notificaciones)
+- `VoyPlatformSettings` (configuración admin)
+- `VoySectors` (sectores dinámicos desde DB)
+- `VoyMicroTasks` (tareas por sector)
    - ✅ `supabaseClient.ts`
    - ✅ Lógica de `api.ts`
 3. Implementar solo vistas de **WORKER** (MVP móvil):

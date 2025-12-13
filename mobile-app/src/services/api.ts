@@ -58,7 +58,7 @@ export const AuthService = {
           auth_user_id: data.user.id,
           full_name: data.user.user_metadata?.full_name || email.split('@')[0],
           email: email,
-          role: 'WORKER',
+          role: 'HELPER',
           city: 'Madrid'
         })
         .select()

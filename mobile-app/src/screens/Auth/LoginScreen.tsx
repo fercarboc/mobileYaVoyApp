@@ -52,10 +52,11 @@ export default function LoginScreen() {
         <View style={styles.content}>
           {/* Logo */}
           <View style={styles.logoContainer}>
-            <View style={styles.logoCircle}>
-              <Text style={styles.logoText}>Y!</Text>
-            </View>
-            <Text style={styles.title}>YaVoy</Text>
+            <Image 
+              source={require('../../../assets/yavoypq.png')} 
+              style={styles.logo}
+              resizeMode="contain"
+            />
             <Text style={styles.subtitle}>Encuentra trabajos cerca de ti</Text>
           </View>
 
@@ -124,19 +125,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 48,
   },
-  logoCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
+  logo: {
+    width: 200,
+    height: 120,
     marginBottom: 16,
-  },
-  logoText: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: COLORS.white,
   },
   title: {
     fontSize: 32,

@@ -5,14 +5,7 @@ import { CompanySector } from '@/types';
 // ========================================
 export const DISTRICTS: Record<string, string[]> = {
   'Arganzuela': ['Delicias', 'Legazpi', 'Chopera', 'Imperial', 'Acacias', 'Palos de la Frontera', 'Atocha'],
-  'Carabanchel': ['Abrantes', 'Opañel', 'San Isidro', 'Vista Alegre', 'Puerta Bonita', 'Buenavista', 'Aluche'],
-  'Centro': ['Palacio', 'Embajadores', 'Cortes', 'Justicia', 'Universidad', 'Sol'],
-  'Chamartín': ['El Viso', 'Prosperidad', 'Ciudad Jardín', 'Hispanoamérica', 'Nueva España', 'Pinar del Rey'],
-  'Chamberí': ['Gaztambide', 'Arapiles', 'Trafalgar', 'Almagro', 'Ríos Rosas', 'Vallehermoso'],
-  'Retiro': ['Pacífico', 'Adelfas', 'Estrella', 'Ibiza', 'Jerónimos', 'Niño Jesús'],
-  'Salamanca': ['Recoletos', 'Goya', 'Fuente del Berro', 'Guindalera', 'Lista', 'Castellana'],
   'Usera': ['Almendrales', 'Orcasitas', 'Moscardó', 'Zofío', 'Pradolongo', 'San Fermín'],
-  'Villaverde': ['San Andrés', 'San Cristóbal', 'Butarque', 'Los Rosales', 'Los Ángeles']
 };
 
 // ========================================
@@ -116,9 +109,13 @@ export const COLORS = {
   primary: '#6366f1', // Indigo
   primaryDark: '#4f46e5',
   secondary: '#22c55e', // Green
+  success: '#10b981', // Green (success states)
+  info: '#3b82f6', // Blue (informational)
   danger: '#ef4444',
   warning: '#f59e0b',
   dark: '#1e293b',
+  textDark: '#1e293b', // Alias for dark (text color)
+  error: '#ef4444', // Alias for danger (error states)
   gray: '#64748b',
   lightGray: '#f1f5f9',
   white: '#ffffff',

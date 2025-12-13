@@ -71,9 +71,10 @@ export default function App() {
         >
           {user ? (
             <Stack.Screen 
-              name="Main" 
-              component={MainNavigator}
-            />
+              name="Main"
+            >
+              {() => <MainNavigator userRole={user.role} />}
+            </Stack.Screen>
           ) : (
             <>
               <Stack.Screen name="Login" component={LoginScreen} />

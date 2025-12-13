@@ -25,7 +25,7 @@ export default function RegisterScreen() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('WORKER' as UserRole);
+  const [role, setRole] = useState<UserRole>('HELPER' as UserRole);
   const [district] = useState('Centro');
   const [neighborhood] = useState('Sol');
   const [loading, setLoading] = useState(false);
@@ -110,15 +110,15 @@ export default function RegisterScreen() {
                 <TouchableOpacity
                   style={[
                     styles.roleButton,
-                    role === 'WORKER' && styles.roleButtonActive,
+                    role === 'HELPER' && styles.roleButtonActive,
                   ]}
-                  onPress={() => setRole('WORKER' as UserRole)}
+                  onPress={() => setRole('HELPER' as UserRole)}
                 >
                   <Text style={styles.roleIcon}>🛠️</Text>
                   <Text
                     style={[
                       styles.roleButtonText,
-                      role === 'WORKER' && styles.roleButtonTextActive,
+                      role === 'HELPER' && styles.roleButtonTextActive,
                     ]}
                   >
                     Trabajar

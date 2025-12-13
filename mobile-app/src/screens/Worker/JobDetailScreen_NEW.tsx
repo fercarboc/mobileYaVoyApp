@@ -80,10 +80,10 @@ export default function JobDetailScreen({ route, navigation }: JobDetailScreenPr
       if (data) {
         setJob(data);
         // Pre-rellenar precio según tipo
-        if (data.price_fixed != null) {
+        if (data.price_fixed) {
           setProposedPrice(data.price_fixed.toString());
         }
-        if (data.price_hourly != null) {
+        if (data.price_hourly) {
           setProposedHourlyRate(data.price_hourly.toString());
         }
       }
@@ -197,7 +197,7 @@ export default function JobDetailScreen({ route, navigation }: JobDetailScreenPr
           {/* Title */}
           <Text style={styles.title}>{job.title}</Text>
 
-          {/* Category & Type */}
+          {/* Category */}
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
               <Ionicons
@@ -235,10 +235,16 @@ export default function JobDetailScreen({ route, navigation }: JobDetailScreenPr
             {job.price_negotiable ? (
               <Text style={styles.priceValue}>A convenir 💬</Text>
             ) : (
-              <Text style={styles.priceValue}>
-                {job.price_fixed != null ? `${job.price_fixed.toFixed(2)} €` : 
-                 job.price_hourly != null ? `${job.price_hourly.toFixed(2)} €/h` : 'No especificado'}
-              </Text>
+              <>
+                {job.job_type === 'ONE_OFF' && job.price_fixed && (
+                  <Text style={styles.priceValue}>{job.price_fixed.toFixed(2)} €</Text>
+                )}
+                {job.job_type === 'HOURLY' && job.price_hourly && (
+                  <Text style={styles.priceValue}>
+                    {job.price_hourly.toFixed(2)} €<Text style={styles.priceUnit}>/hora</Text>
+                  </Text>
+                )}
+              </>
             )}
           </View>
         </View>
@@ -296,7 +302,7 @@ export default function JobDetailScreen({ route, navigation }: JobDetailScreenPr
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Aplicar al trabajo</Text>
+              <Text style={styles.modalTitle}>Presentar candidatura</Text>
               <TouchableOpacity onPress={() => setShowApplyModal(false)}>
                 <Ionicons name="close" size={28} color={COLORS.dark} />
               </TouchableOpacity>
@@ -419,17 +425,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
   },
-  urgencyBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  urgencyText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -439,7 +434,7 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
     marginBottom: 12,
   },
   metaItem: {
@@ -451,48 +446,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.gray,
   },
-  contractBadge: {
-    backgroundColor: `${COLORS.primary}15`,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  contractText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.primary,
-  },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     marginBottom: 16,
   },
   locationText: {
     fontSize: 14,
     color: COLORS.gray,
   },
-  distanceSeparator: {
-    fontSize: 14,
-    color: COLORS.gray,
-    marginHorizontal: 4,
-  },
-  distanceText: {
-    fontSize: 14,
-    color: COLORS.gray,
-    fontWeight: '500',
-  },
   priceCard: {
-    backgroundColor: COLORS.lightGray,
+    backgroundColor: '#f0f9ff',
     padding: 16,
     borderRadius: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#bae6fd',
   },
   priceLabel: {
     fontSize: 14,
     color: COLORS.gray,
+    marginBottom: 4,
   },
   priceValue: {
     fontSize: 28,
@@ -501,23 +475,22 @@ const styles = StyleSheet.create({
   },
   priceUnit: {
     fontSize: 16,
-    fontWeight: 'normal',
     color: COLORS.gray,
   },
   section: {
     backgroundColor: '#fff',
     padding: 20,
-    marginTop: 12,
+    marginTop: 8,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: COLORS.dark,
     marginBottom: 12,
   },
   description: {
     fontSize: 15,
-    lineHeight: 22,
+    lineHeight: 24,
     color: COLORS.dark,
   },
   detailRow: {
@@ -530,105 +503,48 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: COLORS.dark,
   },
-  scheduleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 10,
-  },
-  scheduleText: {
-    fontSize: 15,
-    color: COLORS.dark,
-  },
-  contractDetail: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
-  },
-  contractDetailLabel: {
-    fontSize: 14,
-    color: COLORS.gray,
-  },
-  contractDetailValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.dark,
-  },
-  phoneButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: `${COLORS.primary}15`,
-    padding: 16,
-    borderRadius: 12,
-  },
-  phoneText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.primary,
-  },
   bottomBar: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     backgroundColor: '#fff',
-    padding: 16,
-    paddingBottom: 28,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 8,
     elevation: 5,
-    flexDirection: 'row',
-    gap: 12,
-  },
-  chatButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: COLORS.white,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-    paddingVertical: 14,
-    borderRadius: 12,
-  },
-  chatButtonText: {
-    color: COLORS.primary,
-    fontSize: 15,
-    fontWeight: 'bold',
   },
   applyButton: {
     backgroundColor: COLORS.primary,
-    flex: 2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
     paddingVertical: 14,
     borderRadius: 12,
+    gap: 8,
   },
   applyButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    padding: 24,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
     maxHeight: '90%',
   },
   modalHeader: {
@@ -644,7 +560,8 @@ const styles = StyleSheet.create({
   },
   modalJobTitle: {
     fontSize: 16,
-    color: COLORS.gray,
+    fontWeight: '600',
+    color: COLORS.dark,
     marginBottom: 20,
   },
   inputGroup: {
@@ -652,61 +569,62 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
     color: COLORS.dark,
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: '#e2e8f0',
     borderRadius: 12,
     padding: 14,
-    fontSize: 16,
+    fontSize: 15,
     color: COLORS.dark,
+    backgroundColor: '#fff',
   },
   textArea: {
-    minHeight: 120,
+    height: 120,
     textAlignVertical: 'top',
   },
   tipsCard: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    backgroundColor: `${COLORS.primary}10`,
-    padding: 14,
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#f0f9ff',
+    padding: 12,
     borderRadius: 12,
     marginBottom: 20,
   },
   tipsText: {
     flex: 1,
     fontSize: 13,
-    color: COLORS.dark,
-    lineHeight: 18,
+    color: COLORS.gray,
   },
   modalApplyButton: {
     backgroundColor: COLORS.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderRadius: 12,
+    gap: 8,
     marginBottom: 12,
-  },
-  disabledButton: {
-    opacity: 0.6,
   },
   modalApplyButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
+  },
+  disabledButton: {
+    backgroundColor: '#cbd5e1',
   },
   cancelButton: {
-    paddingVertical: 12,
+    paddingVertical: 14,
     alignItems: 'center',
   },
   cancelButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     color: COLORS.gray,
+    fontWeight: '500',
   },
 });

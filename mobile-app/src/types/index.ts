@@ -1,7 +1,7 @@
 // ========================================
 // USER ROLES & TYPES
 // ========================================
-export type UserRole = 'PARTICULAR' | 'COMPANY' | 'WORKER' | 'ADMIN';
+export type UserRole = 'PARTICULAR' | 'COMPANY' | 'HELPER' | 'ADMIN';
 
 export type JobUrgency = 'LOW' | 'MEDIUM' | 'HIGH';
 
@@ -160,7 +160,7 @@ export interface AuthState {
 // ========================================
 // DATABASE TYPES
 // ========================================
-export type DBVoyUserRole = 'PARTICULAR' | 'COMPANY' | 'WORKER' | 'ADMIN';
+export type DBVoyUserRole = 'PARTICULAR' | 'COMPANY' | 'HELPER' | 'ADMIN';
 export type DBVoyJobStatus = 'OPEN' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 export type DBVoyApplicationStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'WITHDRAWN';
 
