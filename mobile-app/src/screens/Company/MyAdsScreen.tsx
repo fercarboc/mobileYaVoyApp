@@ -220,23 +220,30 @@ export default function MyAdsScreen() {
 
       <View style={styles.jobActions}>
         {item.status === 'ASSIGNED' || item.status === 'IN_PROGRESS' ? (
-          // Botón de Terminado cuando el trabajo está asignado
+          // Botón de Terminado cuando el trabajo está asignado o en progreso
           <TouchableOpacity
             style={[styles.actionButton, styles.actionButtonSuccess, { flex: 1 }]}
             onPress={() => completeJob(item.id)}
           >
             <Ionicons name="checkmark-done" size={16} color={COLORS.white} />
             <Text style={styles.actionButtonTextPrimary}>
-              Marcar como Terminado
+              {item.status === 'IN_PROGRESS' ? 'Confirmar Pago' : 'Marcar como Terminado'}
             </Text>
           </TouchableOpacity>
+        ) : item.status === 'COMPLETED' ? (
+          // Mensaje de completado
+          <View style={[styles.actionButton, { backgroundColor: '#d1fae5', flex: 1 }]}>
+            <Ionicons name="checkmark-circle" size={16} color={COLORS.success} />
+            <Text style={[styles.actionButtonText, { color: COLORS.success }]}>
+              Trabajo Completado
+            </Text>
+          </View>
         ) : (
-          // Botones normales cuando NO está asignado
+          // Botones normales cuando NO está asignado ni completado
           <>
             <TouchableOpacity
               style={[styles.actionButton, styles.actionButtonPrimary]}
               onPress={() => toggleJobStatus(item.id, item.status)}
-              disabled={item.status === 'COMPLETED'}
             >
               <Ionicons 
                 name={item.status === 'OPEN' ? 'pause' : 'play'} 
@@ -251,7 +258,6 @@ export default function MyAdsScreen() {
             <TouchableOpacity
               style={styles.actionButton}
               onPress={() => deleteJob(item.id)}
-              disabled={item.status === 'COMPLETED'}
             >
               <Ionicons name="trash-outline" size={16} color={COLORS.danger} />
               <Text style={[styles.actionButtonText, { color: COLORS.danger }]}>

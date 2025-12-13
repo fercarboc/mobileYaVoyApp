@@ -9,9 +9,13 @@ import {
   TextInput,
   Modal,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+import * as FileSystem from 'expo-file-system';
 import { COLORS } from '@/constants';
 import { supabase } from '@/services/supabase';
 
@@ -19,19 +23,36 @@ interface UserProfile {
   id: string;
   full_name: string;
   email: string;
+  phone: string;
+  document_type: 'NIF' | 'NIE';
+  document_number: string;
+  address: string;
   city: string;
+  postal_code: string;
+  province: string;
+  country: string;
+  document_photo_url: string;
+  selfie_photo_url: string;
   role: string;
 }
 
 export default function ProfileScreen() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   
   // Edit form
   const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [documentType, setDocumentType] = useState<'NIF' | 'NIE'>('NIF');
+  const [documentNumber, setDocumentNumber] = useState('');
+  const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+  const [province, setProvince] = useState('');
+  const [country, setCountry] = useState('España');
   
   // Password form
   const [newPassword, setNewPassword] = useState('');
@@ -39,7 +60,15 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     loadProfile();
+    requestPermissions();
   }, []);
+
+  const requestPermissions = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permisos', 'Se necesita acceso a la galería para subir fotos');
+    }
+  };
 
   const loadProfile = async () => {
     try {
@@ -48,7 +77,7 @@ export default function ProfileScreen() {
 
       const { data, error } = await supabase
         .from('VoyUsers')
-        .select('id, full_name, email, city, role')
+        .select('*')
         .eq('auth_user_id', user.id)
         .single();
 
@@ -57,7 +86,14 @@ export default function ProfileScreen() {
       if (data) {
         setProfile(data);
         setFullName(data.full_name || '');
+        setPhone(data.phone || '');
+        setDocumentType(data.document_type || 'NIF');
+        setDocumentNumber(data.document_number || '');
+        setAddress(data.address || '');
         setCity(data.city || '');
+        setPostalCode(data.postal_code || '');
+        setProvince(data.province || '');
+        setCountry(data.country || 'España');
       }
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -67,9 +103,166 @@ export default function ProfileScreen() {
     }
   };
 
+  const pickImage = async (type: 'document' | 'selfie') => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: type === 'document' ? [3, 2] : [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        await uploadImage(result.assets[0].uri, type);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'No se pudo seleccionar la imagen');
+    }
+  };
+
+  const takePhoto = async (type: 'document' | 'selfie') => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permisos', 'Se necesita acceso a la cámara');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: type === 'document' ? [3, 2] : [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        await uploadImage(result.assets[0].uri, type);
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      Alert.alert('Error', 'No se pudo tomar la foto');
+    }
+  };
+
+  const uploadImage = async (uri: string, type: 'document' | 'selfie') => {
+    try {
+      setUploading(true);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Comprimir imagen antes de subir
+      let compressedUri = uri;
+      let quality = 0.8;
+      const maxFileSize = 3 * 1024 * 1024; // 3MB en bytes
+      
+      // Comprimir imagen iterativamente hasta que sea menor a 3MB
+      let fileSize = maxFileSize + 1;
+      let attempts = 0;
+      const maxAttempts = 5;
+      
+      while (fileSize > maxFileSize && attempts < maxAttempts) {
+        const manipResult = await ImageManipulator.manipulateAsync(
+          compressedUri,
+          [
+            { resize: { width: type === 'document' ? 1500 : 1000 } }
+          ],
+          { 
+            compress: quality,
+            format: ImageManipulator.SaveFormat.JPEG 
+          }
+        );
+        
+        compressedUri = manipResult.uri;
+        
+        // Verificar tamaño del archivo
+        const fileInfo = await FileSystem.getInfoAsync(compressedUri);
+        fileSize = fileInfo.size || 0;
+        
+        // Reducir calidad para siguiente iteración si es necesario
+        quality = Math.max(0.3, quality - 0.15);
+        attempts++;
+      }
+      
+      // Si después de comprimir sigue siendo muy grande, mostrar error
+      if (fileSize > maxFileSize) {
+        Alert.alert(
+          'Archivo muy grande',
+          'La imagen es demasiado grande incluso después de comprimir. Por favor, elige una imagen más pequeña.'
+        );
+        return;
+      }
+
+      // Crear FormData con imagen comprimida
+      const formData = new FormData();
+      const filename = `${user.id}_${type}_${Date.now()}.jpg`;
+      
+      // @ts-ignore - FormData accepts uri in React Native
+      formData.append('file', {
+        uri: compressedUri,
+        name: filename,
+        type: 'image/jpeg',
+      });
+
+      // Upload to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('user-documents')
+        .upload(filename, formData, {
+          contentType: 'image/jpeg',
+          upsert: true,
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('user-documents')
+        .getPublicUrl(filename);
+
+      // Update profile
+      const updateField = type === 'document' ? 'document_photo_url' : 'selfie_photo_url';
+      const { error: updateError } = await supabase
+        .from('VoyUsers')
+        .update({ [updateField]: publicUrl })
+        .eq('auth_user_id', user.id);
+
+      if (updateError) throw updateError;
+
+      Alert.alert('✅ Éxito', `${type === 'document' ? 'Documento' : 'Selfie'} subido correctamente`);
+      loadProfile();
+    } catch (error: any) {
+      console.error('Error uploading image:', error);
+      Alert.alert('Error', error.message || 'No se pudo subir la imagen');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const showImageOptions = (type: 'document' | 'selfie') => {
+    Alert.alert(
+      type === 'document' ? 'Foto del Documento' : 'Selfie',
+      'Selecciona una opción',
+      [
+        { text: 'Tomar Foto', onPress: () => takePhoto(type) },
+        { text: 'Elegir de Galería', onPress: () => pickImage(type) },
+        { text: 'Cancelar', style: 'cancel' },
+      ]
+    );
+  };
+
   const handleSaveProfile = async () => {
     if (!fullName.trim()) {
       Alert.alert('Error', 'El nombre es requerido');
+      return;
+    }
+
+    if (!phone.trim()) {
+      Alert.alert('Error', 'El teléfono es requerido');
+      return;
+    }
+
+    if (!documentNumber.trim()) {
+      Alert.alert('Error', 'El número de documento es requerido');
       return;
     }
 
@@ -81,7 +274,14 @@ export default function ProfileScreen() {
         .from('VoyUsers')
         .update({
           full_name: fullName.trim(),
+          phone: phone.trim(),
+          document_type: documentType,
+          document_number: documentNumber.trim(),
+          address: address.trim(),
           city: city.trim(),
+          postal_code: postalCode.trim(),
+          province: province.trim(),
+          country: country.trim(),
         })
         .eq('auth_user_id', user.id);
 
@@ -149,210 +349,388 @@ export default function ProfileScreen() {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} />
-      </SafeAreaView>
-    );
-  }
-
-  if (!profile) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.errorText}>No se pudo cargar el perfil</Text>
+        <Text style={styles.loadingText}>Cargando perfil...</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 80 }}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <ScrollView>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Mi Perfil</Text>
-          <View style={styles.roleBadge}>
-            <Ionicons name="person-outline" size={14} color={COLORS.primary} />
-            <Text style={styles.roleText}>Trabajador</Text>
-          </View>
+          <Text style={styles.headerTitle}>Perfil</Text>
+          <TouchableOpacity onPress={() => setShowEditModal(true)}>
+            <Ionicons name="create-outline" size={24} color={COLORS.primary} />
+          </TouchableOpacity>
         </View>
 
-        {/* Profile Card */}
-        <View style={styles.profileCard}>
-          <View style={styles.avatarContainer}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {profile.full_name.charAt(0).toUpperCase()}
+        {/* Profile Info */}
+        <View style={styles.section}>
+          <View style={styles.infoRow}>
+            <Ionicons name="person" size={20} color={COLORS.primary} />
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>Nombre Completo</Text>
+              <Text style={styles.infoValue}>{profile?.full_name || 'No especificado'}</Text>
+            </View>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Ionicons name="mail" size={20} color={COLORS.primary} />
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>Email</Text>
+              <Text style={styles.infoValue}>{profile?.email}</Text>
+            </View>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Ionicons name="call" size={20} color={COLORS.primary} />
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>Teléfono</Text>
+              <Text style={styles.infoValue}>{profile?.phone || 'No especificado'}</Text>
+            </View>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Ionicons name="card" size={20} color={COLORS.primary} />
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>Documento</Text>
+              <Text style={styles.infoValue}>
+                {profile?.document_type || 'NIF'} - {profile?.document_number || 'No especificado'}
               </Text>
             </View>
           </View>
+        </View>
 
-          <Text style={styles.name}>{profile.full_name}</Text>
-          <Text style={styles.email}>{profile.email}</Text>
+        {/* Address Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Domicilio</Text>
           
-          {profile.city && (
-            <View style={styles.locationContainer}>
-              <Ionicons name="location-outline" size={16} color={COLORS.gray} />
-              <Text style={styles.location}>{profile.city}</Text>
+          <View style={styles.infoRow}>
+            <Ionicons name="home" size={20} color={COLORS.primary} />
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>Dirección</Text>
+              <Text style={styles.infoValue}>{profile?.address || 'No especificado'}</Text>
+            </View>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Ionicons name="location" size={20} color={COLORS.primary} />
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>Localidad</Text>
+              <Text style={styles.infoValue}>{profile?.city || 'No especificado'}</Text>
+            </View>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Ionicons name="mail-open" size={20} color={COLORS.primary} />
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>Código Postal</Text>
+              <Text style={styles.infoValue}>{profile?.postal_code || 'No especificado'}</Text>
+            </View>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Ionicons name="map" size={20} color={COLORS.primary} />
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>Provincia</Text>
+              <Text style={styles.infoValue}>{profile?.province || 'No especificado'}</Text>
+            </View>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Ionicons name="globe" size={20} color={COLORS.primary} />
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>País</Text>
+              <Text style={styles.infoValue}>{profile?.country || 'No especificado'}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Document Photos Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Verificación de Identidad</Text>
+          
+          {/* Document Photo */}
+          <TouchableOpacity 
+            style={styles.photoCard}
+            onPress={() => showImageOptions('document')}
+            disabled={uploading}
+          >
+            <View style={styles.photoHeader}>
+              <Ionicons name="document-text" size={24} color={COLORS.primary} />
+              <Text style={styles.photoTitle}>Foto del Documento</Text>
+            </View>
+            {profile?.document_photo_url ? (
+              <Image 
+                source={{ uri: profile.document_photo_url }} 
+                style={styles.photoPreview}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={styles.photoPlaceholder}>
+                <Ionicons name="camera" size={48} color={COLORS.textSecondary} />
+                <Text style={styles.photoPlaceholderText}>
+                  Toca para subir foto del documento
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          {/* Selfie Photo */}
+          <TouchableOpacity 
+            style={styles.photoCard}
+            onPress={() => showImageOptions('selfie')}
+            disabled={uploading}
+          >
+            <View style={styles.photoHeader}>
+              <Ionicons name="person-circle" size={24} color={COLORS.primary} />
+              <Text style={styles.photoTitle}>Selfie</Text>
+            </View>
+            {profile?.selfie_photo_url ? (
+              <Image 
+                source={{ uri: profile.selfie_photo_url }} 
+                style={styles.photoPreview}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={styles.photoPlaceholder}>
+                <Ionicons name="camera" size={48} color={COLORS.textSecondary} />
+                <Text style={styles.photoPlaceholderText}>
+                  Toca para subir tu selfie
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          {uploading && (
+            <View style={styles.uploadingContainer}>
+              <ActivityIndicator size="small" color={COLORS.primary} />
+              <Text style={styles.uploadingText}>Subiendo imagen...</Text>
             </View>
           )}
-
-          <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => setShowEditModal(true)}
-          >
-            <Ionicons name="create-outline" size={20} color="#fff" />
-            <Text style={styles.editButtonText}>Editar Perfil</Text>
-          </TouchableOpacity>
         </View>
 
-        {/* Options Section */}
+        {/* Actions */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Cuenta</Text>
-
-          <TouchableOpacity
-            style={styles.option}
+          <TouchableOpacity 
+            style={styles.actionButton}
             onPress={() => setShowPasswordModal(true)}
           >
-            <View style={styles.optionLeft}>
-              <View style={[styles.optionIcon, { backgroundColor: '#fef3c7' }]}>
-                <Ionicons name="lock-closed-outline" size={20} color="#d97706" />
-              </View>
-              <Text style={styles.optionText}>Cambiar Contraseña</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={COLORS.gray} />
+            <Ionicons name="lock-closed" size={20} color={COLORS.primary} />
+            <Text style={styles.actionButtonText}>Cambiar Contraseña</Text>
+            <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.option} onPress={handleLogout}>
-            <View style={styles.optionLeft}>
-              <View style={[styles.optionIcon, { backgroundColor: '#fee2e2' }]}>
-                <Ionicons name="log-out-outline" size={20} color="#dc2626" />
-              </View>
-              <Text style={[styles.optionText, { color: '#dc2626' }]}>Cerrar Sesión</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={COLORS.gray} />
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.logoutButton]}
+            onPress={handleLogout}
+          >
+            <Ionicons name="log-out" size={20} color={COLORS.error} />
+            <Text style={[styles.actionButtonText, { color: COLORS.error }]}>
+              Cerrar Sesión
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color={COLORS.error} />
           </TouchableOpacity>
         </View>
 
-        {/* Info Section */}
-        <View style={styles.infoSection}>
-          <Text style={styles.infoText}>YaVoy - Encuentra trabajos cerca de ti</Text>
-          <Text style={styles.versionText}>Versión 1.0.0</Text>
-        </View>
+        <View style={{ height: 40 }} />
       </ScrollView>
 
       {/* Edit Profile Modal */}
       <Modal
         visible={showEditModal}
         animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowEditModal(false)}
+        presentationStyle="pageSheet"
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Editar Perfil</Text>
-              <TouchableOpacity onPress={() => setShowEditModal(false)}>
-                <Ionicons name="close" size={28} color={COLORS.dark} />
-              </TouchableOpacity>
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowEditModal(false)}>
+              <Text style={styles.modalCancelText}>Cancelar</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Editar Perfil</Text>
+            <TouchableOpacity onPress={handleSaveProfile}>
+              <Text style={styles.modalSaveText}>Guardar</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            {/* Personal Info */}
+            <Text style={styles.modalSectionTitle}>Información Personal</Text>
+            
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Nombre Completo *</Text>
+              <TextInput
+                style={styles.input}
+                value={fullName}
+                onChangeText={setFullName}
+                placeholder="Ej: Juan Pérez García"
+              />
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Nombre Completo *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Tu nombre completo"
-                  value={fullName}
-                  onChangeText={setFullName}
-                />
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Teléfono *</Text>
+              <TextInput
+                style={styles.input}
+                value={phone}
+                onChangeText={setPhone}
+                placeholder="Ej: 612345678"
+                keyboardType="phone-pad"
+              />
+            </View>
+
+            {/* Document Info */}
+            <Text style={styles.modalSectionTitle}>Documento de Identidad</Text>
+            
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Tipo de Documento *</Text>
+              <View style={styles.documentTypeContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.documentTypeButton,
+                    documentType === 'NIF' && styles.documentTypeButtonActive,
+                  ]}
+                  onPress={() => setDocumentType('NIF')}
+                >
+                  <Text
+                    style={[
+                      styles.documentTypeText,
+                      documentType === 'NIF' && styles.documentTypeTextActive,
+                    ]}
+                  >
+                    NIF
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.documentTypeButton,
+                    documentType === 'NIE' && styles.documentTypeButtonActive,
+                  ]}
+                  onPress={() => setDocumentType('NIE')}
+                >
+                  <Text
+                    style={[
+                      styles.documentTypeText,
+                      documentType === 'NIE' && styles.documentTypeTextActive,
+                    ]}
+                  >
+                    NIE
+                  </Text>
+                </TouchableOpacity>
               </View>
+            </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Ciudad</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Madrid, Barcelona, etc."
-                  value={city}
-                  onChangeText={setCity}
-                />
-              </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Número de Documento *</Text>
+              <TextInput
+                style={styles.input}
+                value={documentNumber}
+                onChangeText={setDocumentNumber}
+                placeholder="Ej: 12345678A"
+                autoCapitalize="characters"
+              />
+            </View>
 
-              <TouchableOpacity
-                style={styles.saveButton}
-                onPress={handleSaveProfile}
-              >
-                <Ionicons name="checkmark" size={20} color="#fff" />
-                <Text style={styles.saveButtonText}>Guardar Cambios</Text>
-              </TouchableOpacity>
+            {/* Address */}
+            <Text style={styles.modalSectionTitle}>Domicilio</Text>
+            
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Dirección</Text>
+              <TextInput
+                style={styles.input}
+                value={address}
+                onChangeText={setAddress}
+                placeholder="Calle, número, piso, puerta"
+              />
+            </View>
 
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => setShowEditModal(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Localidad</Text>
+              <TextInput
+                style={styles.input}
+                value={city}
+                onChangeText={setCity}
+                placeholder="Ej: Madrid"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Código Postal</Text>
+              <TextInput
+                style={styles.input}
+                value={postalCode}
+                onChangeText={setPostalCode}
+                placeholder="Ej: 28001"
+                keyboardType="numeric"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Provincia</Text>
+              <TextInput
+                style={styles.input}
+                value={province}
+                onChangeText={setProvince}
+                placeholder="Ej: Madrid"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>País</Text>
+              <TextInput
+                style={styles.input}
+                value={country}
+                onChangeText={setCountry}
+                placeholder="Ej: España"
+              />
+            </View>
+
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        </SafeAreaView>
       </Modal>
 
       {/* Change Password Modal */}
       <Modal
         visible={showPasswordModal}
         animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowPasswordModal(false)}
+        presentationStyle="pageSheet"
       >
-        <View style={styles.modalOverlay}>
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowPasswordModal(false)}>
+              <Text style={styles.modalCancelText}>Cancelar</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Cambiar Contraseña</Text>
+            <TouchableOpacity onPress={handleChangePassword}>
+              <Text style={styles.modalSaveText}>Guardar</Text>
+            </TouchableOpacity>
+          </View>
+
           <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Cambiar Contraseña</Text>
-              <TouchableOpacity onPress={() => setShowPasswordModal(false)}>
-                <Ionicons name="close" size={28} color={COLORS.dark} />
-              </TouchableOpacity>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Nueva Contraseña</Text>
+              <TextInput
+                style={styles.input}
+                value={newPassword}
+                onChangeText={setNewPassword}
+                placeholder="Mínimo 6 caracteres"
+                secureTextEntry
+              />
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Nueva Contraseña *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Mínimo 6 caracteres"
-                  secureTextEntry
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Confirmar Contraseña *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Repite la contraseña"
-                  secureTextEntry
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                />
-              </View>
-
-              <TouchableOpacity
-                style={styles.saveButton}
-                onPress={handleChangePassword}
-              >
-                <Ionicons name="lock-closed" size={20} color="#fff" />
-                <Text style={styles.saveButtonText}>Cambiar Contraseña</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => {
-                  setShowPasswordModal(false);
-                  setNewPassword('');
-                  setConfirmPassword('');
-                }}
-              >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
-              </TouchableOpacity>
-            </ScrollView>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Confirmar Contraseña</Text>
+              <TextInput
+                style={styles.input}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                placeholder="Repite la contraseña"
+                secureTextEntry
+              />
+            </View>
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
     </SafeAreaView>
   );
@@ -361,225 +739,212 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.lightGray,
+    backgroundColor: COLORS.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.lightGray,
+    backgroundColor: COLORS.background,
   },
-  errorText: {
+  loadingText: {
+    marginTop: 12,
     fontSize: 16,
-    color: COLORS.gray,
-    textAlign: 'center',
-    marginTop: 40,
+    color: COLORS.textSecondary,
   },
   header: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    padding: 20,
+    paddingBottom: 16,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: COLORS.dark,
-  },
-  roleBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#eff6ff',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 4,
-  },
-  roleText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.primary,
-  },
-  profileCard: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
-  },
-  avatarContainer: {
-    marginBottom: 16,
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  name: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: COLORS.dark,
-    marginBottom: 4,
-  },
-  email: {
-    fontSize: 15,
-    color: COLORS.gray,
-    marginBottom: 8,
-  },
-  locationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 20,
-  },
-  location: {
-    fontSize: 14,
-    color: COLORS.gray,
-  },
-  editButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-    gap: 8,
-  },
-  editButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
+    color: COLORS.text,
   },
   section: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 16,
-    padding: 16,
+    marginBottom: 24,
+    paddingHorizontal: 20,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: COLORS.dark,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 16,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 12,
   },
-  option: {
+  infoContent: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  infoLabel: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginBottom: 4,
+  },
+  infoValue: {
+    fontSize: 16,
+    color: COLORS.text,
+    fontWeight: '500',
+  },
+  photoCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  photoHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    marginBottom: 12,
   },
-  optionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+  photoTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginLeft: 8,
   },
-  optionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  photoPreview: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    backgroundColor: COLORS.background,
+  },
+  photoPlaceholder: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    backgroundColor: COLORS.background,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  optionText: {
-    fontSize: 16,
-    color: COLORS.dark,
-  },
-  infoSection: {
-    alignItems: 'center',
-    marginTop: 32,
-    marginBottom: 16,
-  },
-  infoText: {
+  photoPlaceholderText: {
     fontSize: 14,
-    color: COLORS.gray,
-    marginBottom: 4,
+    color: COLORS.textSecondary,
+    marginTop: 12,
+    textAlign: 'center',
   },
-  versionText: {
-    fontSize: 12,
-    color: COLORS.gray,
+  uploadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
   },
-  modalOverlay: {
+  uploadingText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: COLORS.primary,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  actionButtonText: {
+    fontSize: 16,
+    color: COLORS.text,
+    fontWeight: '500',
+    marginLeft: 12,
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
   },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 40,
-    maxHeight: '80%',
+  logoutButton: {
+    borderWidth: 1,
+    borderColor: COLORS.error + '30',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  modalCancelText: {
+    fontSize: 16,
+    color: COLORS.textSecondary,
   },
   modalTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.dark,
+    color: COLORS.text,
+  },
+  modalSaveText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+  },
+  modalContent: {
+    flex: 1,
+    padding: 20,
+  },
+  modalSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginTop: 16,
+    marginBottom: 16,
   },
   inputGroup: {
     marginBottom: 20,
   },
   inputLabel: {
     fontSize: 14,
-    fontWeight: '500',
-    color: COLORS.dark,
+    fontWeight: '600',
+    color: COLORS.text,
     marginBottom: 8,
   },
   input: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: COLORS.text,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 15,
-    color: COLORS.dark,
-    backgroundColor: '#fff',
+    borderColor: COLORS.border,
   },
-  saveButton: {
+  documentTypeContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    paddingVertical: 14,
-    borderRadius: 12,
-    gap: 8,
-    marginBottom: 12,
+    gap: 12,
   },
-  saveButtonText: {
-    color: '#fff',
+  documentTypeButton: {
+    flex: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+    alignItems: 'center',
+  },
+  documentTypeButtonActive: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary + '10',
+  },
+  documentTypeText: {
     fontSize: 16,
     fontWeight: '600',
+    color: COLORS.textSecondary,
   },
-  cancelButton: {
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 15,
-    color: COLORS.gray,
-    fontWeight: '500',
+  documentTypeTextActive: {
+    color: COLORS.primary,
   },
 });

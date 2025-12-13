@@ -11,6 +11,7 @@ import MyJobsScreen from '../screens/Worker/MyJobsScreen';
 import WorkerProfileScreen from '../screens/Worker/ProfileScreen';
 import JobDetailScreen from '../screens/Worker/JobDetailScreen';
 import ChatsScreen from '../screens/Worker/ChatsScreen';
+import WorkerEconomicsScreen from '../screens/Worker/EconomicsScreen';
 
 // Company Screens
 import CompanyHomeScreen from '../screens/Company/CompanyHomeScreen';
@@ -218,6 +219,8 @@ function WorkerNavigator() {
             iconName = focused ? 'briefcase' : 'briefcase-outline';
           } else if (route.name === 'Chats') {
             iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
+          } else if (route.name === 'Economics') {
+            iconName = focused ? 'wallet' : 'wallet-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
           }
@@ -240,6 +243,11 @@ function WorkerNavigator() {
         name="Chats" 
         component={ChatsStackNavigator}
         options={{ tabBarLabel: 'Chats' }}
+      />
+      <Tab.Screen 
+        name="Economics" 
+        component={WorkerEconomicsScreen}
+        options={{ tabBarLabel: 'Económico' }}
       />
       <Tab.Screen 
         name="Profile" 
@@ -333,9 +341,9 @@ function AdminNavigator() {
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.gray,
         tabBarStyle: {
-          paddingBottom: 28,
+          paddingBottom: 35,
           paddingTop: 8,
-          height: 80,
+          height: 90,
           borderTopWidth: 1,
           borderTopColor: '#e5e7eb',
         },

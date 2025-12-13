@@ -24,8 +24,10 @@ export default function CompanyHomeScreen() {
     activeJobs: 0,
     totalApplications: 0,
     pendingApplications: 0,
+    finishedJobs: 0,
   });
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [finishedJobs, setFinishedJobs] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [subscription, setSubscription] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -69,6 +71,33 @@ export default function CompanyHomeScreen() {
         .select('id, status')
         .eq('creator_user_id', profile.id)
         .eq('status', 'OPEN');
+
+      // Cargar trabajos finalizados pendientes de confirmación
+      const { data: finishedJobsData } = await supabase
+        .from('VoyJobs')
+        .select(`
+          id,
+          title,
+          price_fixed,
+          price_hourly,
+          status,
+          VoyJobApplications!inner(
+            id,
+            status,
+            helper_user_id,
+            proposed_price,
+            proposed_hourly_rate,
+            VoyUsers!helper_user_id(
+              id,
+              full_name
+            )
+          )
+        `)
+        .eq('creator_user_id', profile.id)
+        .eq('status', 'IN_PROGRESS')
+        .eq('VoyJobApplications.status', 'ACCEPTED');
+
+      setFinishedJobs(finishedJobsData || []);
 
       // Cargar candidaturas
       const { data: applications } = await supabase
@@ -114,6 +143,7 @@ export default function CompanyHomeScreen() {
         activeJobs: jobs?.length || 0,
         totalApplications: applications?.length || 0,
         pendingApplications: pendingApps.length || 0,
+        finishedJobs: finishedJobsData?.length || 0,
       });
     } catch (error) {
       console.error('Error loading data:', error);
@@ -134,6 +164,96 @@ export default function CompanyHomeScreen() {
 
   const handleBuySubscription = () => {
     navigation.navigate('Subscriptions' as never);
+  };
+
+  const confirmJobCompletion = async (job: any) => {
+    const application = job.VoyJobApplications?.[0];
+    if (!application) return;
+
+    const amount = application.proposed_price || application.proposed_hourly_rate || job.price_fixed || job.price_hourly || 0;
+
+    // Primero pedir forma de pago
+    Alert.alert(
+      'Seleccionar Forma de Pago',
+      `Confirma el pago de ${amount.toFixed(2)}€ al trabajador ${application.VoyUsers?.full_name || 'Desconocido'}`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Transferencia',
+          onPress: () => processPayment(job, application, amount, 'TRANSFERENCIA'),
+        },
+        {
+          text: 'Efectivo',
+          onPress: () => processPayment(job, application, amount, 'EFECTIVO'),
+        },
+        {
+          text: 'Bizum',
+          onPress: () => processPayment(job, application, amount, 'BIZUM'),
+        },
+      ]
+    );
+  };
+
+  const processPayment = async (job: any, application: any, amount: number, paymentMethod: string) => {
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) return;
+
+      const { data: profile } = await supabase
+        .from('VoyUsers')
+        .select('id')
+        .eq('auth_user_id', authUser.id)
+        .single();
+
+      if (!profile) return;
+
+      // Actualizar estado del trabajo a COMPLETED
+      const { error: jobError } = await supabase
+        .from('VoyJobs')
+        .update({ status: 'COMPLETED' })
+        .eq('id', job.id);
+
+      if (jobError) throw jobError;
+
+      // Registrar transacción económica para la empresa (gasto)
+      const { error: companyTransError } = await supabase
+        .from('VoyEconomicTransactions')
+        .insert({
+          user_id: profile.id,
+          type: 'PAYMENT',
+          amount: -amount,
+          description: `Pago por trabajo: ${job.title}`,
+          job_id: job.id,
+          payment_method: paymentMethod,
+        });
+
+      if (companyTransError) throw companyTransError;
+
+      // Registrar transacción económica para el trabajador (ingreso)
+      const { error: workerTransError } = await supabase
+        .from('VoyEconomicTransactions')
+        .insert({
+          user_id: application.VoyUsers.id,
+          type: 'INCOME',
+          amount: amount,
+          description: `Pago recibido por trabajo: ${job.title}`,
+          job_id: job.id,
+          payment_method: paymentMethod,
+        });
+
+      if (workerTransError) throw workerTransError;
+
+      // Recargar datos
+      await loadData();
+
+      Alert.alert(
+        'Pago Procesado',
+        `El pago de ${amount.toFixed(2)}€ mediante ${paymentMethod} ha sido registrado exitosamente.`
+      );
+    } catch (error) {
+      console.error('Error processing payment:', error);
+      Alert.alert('Error', 'No se pudo procesar el pago');
+    }
   };
 
   return (
@@ -220,6 +340,44 @@ export default function CompanyHomeScreen() {
             <Text style={styles.statLabel}>Por revisar</Text>
           </View>
         </View>
+
+        {/* Trabajos Finalizados - Pendientes de Confirmación */}
+        {finishedJobs.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>⚠️ Trabajos Finalizados</Text>
+            <Text style={styles.sectionSubtitle}>
+              Los siguientes trabajos han sido marcados como finalizados por el trabajador. Confirma para procesar el pago.
+            </Text>
+            {finishedJobs.map((job) => {
+              const application = job.VoyJobApplications?.[0];
+              const amount = application?.proposed_price || application?.proposed_hourly_rate || job.price_fixed || job.price_hourly || 0;
+              
+              return (
+                <View key={job.id} style={styles.finishedJobCard}>
+                  <View style={styles.finishedJobHeader}>
+                    <Ionicons name="checkmark-done-circle" size={24} color={COLORS.success} />
+                    <View style={styles.finishedJobInfo}>
+                      <Text style={styles.finishedJobTitle}>{job.title}</Text>
+                      <Text style={styles.finishedJobWorker}>
+                        Trabajador: {application?.VoyUsers?.full_name || 'Desconocido'}
+                      </Text>
+                      <Text style={styles.finishedJobAmount}>
+                        Monto a pagar: {amount.toFixed(2)}€
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.confirmButton}
+                    onPress={() => confirmJobCompletion(job)}
+                  >
+                    <Ionicons name="card" size={20} color={COLORS.white} />
+                    <Text style={styles.confirmButtonText}>Confirmar y Pagar</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+          </View>
+        )}
 
         {/* Quick Actions */}
         <View style={styles.section}>
@@ -550,5 +708,58 @@ const styles = StyleSheet.create({
   activityTime: {
     fontSize: 11,
     color: COLORS.gray,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: COLORS.gray,
+    marginBottom: 12,
+  },
+  finishedJobCard: {
+    backgroundColor: '#fef3c7',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: COLORS.warning,
+  },
+  finishedJobHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  finishedJobInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  finishedJobTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.dark,
+    marginBottom: 4,
+  },
+  finishedJobWorker: {
+    fontSize: 14,
+    color: COLORS.gray,
+    marginBottom: 4,
+  },
+  finishedJobAmount: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.success,
+  },
+  confirmButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.success,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 8,
+  },
+  confirmButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.white,
   },
 });

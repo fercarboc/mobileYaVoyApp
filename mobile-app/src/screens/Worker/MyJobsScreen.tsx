@@ -93,7 +93,7 @@ export default function MyJobsScreen() {
           proposed_hourly_rate,
           status,
           created_at,
-          job:VoyJobs!job_id (
+          job:VoyJobs(
             title,
             category,
             job_type,
@@ -101,7 +101,7 @@ export default function MyJobsScreen() {
             district,
             status,
             creator_user_id,
-            creator:VoyUsers!creator_user_id (
+            creator:VoyUsers!creator_user_id(
               id,
               full_name
             )
@@ -113,6 +113,8 @@ export default function MyJobsScreen() {
       if (error) throw error;
 
       if (data) {
+        console.log('Applications loaded:', data.length);
+        console.log('Applications data:', JSON.stringify(data, null, 2));
         setApplications(data as any);
       }
     } catch (error) {
@@ -139,15 +141,20 @@ export default function MyJobsScreen() {
           style: 'default',
           onPress: async () => {
             try {
-              const { error } = await supabase
+              // Actualizar estado del job a IN_PROGRESS
+              const { error: jobError } = await supabase
                 .from('VoyJobs')
                 .update({ status: 'IN_PROGRESS' })
                 .eq('id', jobId);
 
-              if (error) throw error;
+              if (jobError) throw jobError;
 
-              // Recargar aplicaciones
-              await loadApplications();
+              // Actualizar estado de la aplicación localmente
+              setApplications(prev => prev.map(app => 
+                app.id === applicationId 
+                  ? { ...app, job: app.job ? { ...app.job, status: 'IN_PROGRESS' } : null }
+                  : app
+              ));
 
               Alert.alert(
                 'Trabajo Finalizado',
@@ -194,6 +201,19 @@ export default function MyJobsScreen() {
     }
   };
 
+  const getApplicationStatusLabel = (item: JobApplication) => {
+    // Si el trabajo está completado, mostrar "Completada"
+    if (item.job?.status === 'COMPLETED') {
+      return 'Completada';
+    }
+    // Si el trabajo está en progreso (finalizado por el worker), mostrar "Finalizada"
+    if (item.status === 'ACCEPTED' && item.job?.status === 'IN_PROGRESS') {
+      return 'Finalizada';
+    }
+    // Sino, mostrar el status normal
+    return getStatusLabel(item.status);
+  };
+
   const getCategoryName = (categoryId: string) => {
     const category = JOB_CATEGORIES.find((cat) => cat.id === categoryId);
     return category?.label || categoryId;
@@ -219,12 +239,79 @@ export default function MyJobsScreen() {
 
   const renderApplication = ({ item }: { item: JobApplication }) => {
     const statusColor = getStatusColor(item.status);
-    const isJobClosed = item.job?.status === 'CLOSED' || item.job?.status === 'COMPLETED' || item.job?.status === 'CANCELLED';
-
-    // Si no hay información del trabajo, no renderizar
+    const statusLabel = getApplicationStatusLabel(item);
+    
+    // Si no hay información del trabajo, mostrar versión simplificada
     if (!item.job) {
-      return null;
+      return (
+        <View style={styles.card}>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: statusColor.bg, borderColor: statusColor.border },
+            ]}
+          >
+            <Ionicons 
+              name={statusColor.icon as any} 
+              size={16} 
+              color={statusColor.text} 
+              style={{ marginRight: 4 }}
+            />
+            <Text style={[styles.statusText, { color: statusColor.text }]}>
+              {statusLabel}
+            </Text>
+          </View>
+          <Text style={styles.jobTitle}>Trabajo</Text>
+          <Text style={styles.metaText}>Detalles del trabajo no disponibles</Text>
+          
+          {/* Proposed Price */}
+          {(item.proposed_price || item.proposed_hourly_rate) && (
+            <View style={styles.priceRow}>
+              <Text style={styles.priceLabel}>Tu propuesta:</Text>
+              <Text style={styles.priceValue}>
+                {item.proposed_price 
+                  ? `${item.proposed_price.toFixed(2)} €`
+                  : `${item.proposed_hourly_rate?.toFixed(2)} €/h`
+                }
+              </Text>
+            </View>
+          )}
+          
+          {/* Application Date */}
+          <View style={styles.dateRow}>
+            <Ionicons name="calendar-outline" size={14} color={COLORS.gray} />
+            <Text style={styles.dateText}>
+              Aplicado el {new Date(item.created_at).toLocaleDateString('es-ES')}
+            </Text>
+          </View>
+
+          {/* Message */}
+          {item.message && (
+            <View style={styles.messageContainer}>
+              <Text style={styles.messageLabel}>Tu mensaje:</Text>
+              <Text style={styles.messageText} numberOfLines={3}>
+                {item.message}
+              </Text>
+            </View>
+          )}
+
+          {/* Botón de Finalizado para trabajos aceptados que no estén ya finalizados */}
+          {item.status === 'ACCEPTED' && (
+            <TouchableOpacity
+              style={[styles.chatButton, styles.finishButton]}
+              onPress={() => markJobAsFinished(item.job_id, item.id)}
+            >
+              <Ionicons name="checkmark-done" size={20} color={COLORS.white} />
+              <Text style={[styles.chatButtonText, styles.finishButtonText]}>
+                Marcar como Finalizado
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      );
     }
+
+    const isJobClosed = item.job.status === 'CLOSED' || item.job.status === 'COMPLETED' || item.job.status === 'CANCELLED';
 
     return (
       <View style={styles.card}>
@@ -242,7 +329,7 @@ export default function MyJobsScreen() {
             style={{ marginRight: 4 }}
           />
           <Text style={[styles.statusText, { color: statusColor.text }]}>
-            {getStatusLabel(item.status)}
+            {statusLabel}
           </Text>
         </View>
 
@@ -300,8 +387,8 @@ export default function MyJobsScreen() {
           </View>
         )}
 
-        {/* Botón de Finalizado para trabajos aceptados */}
-        {item.status === 'ACCEPTED' && (
+        {/* Botón de Finalizado para trabajos aceptados que no estén ya finalizados */}
+        {item.status === 'ACCEPTED' && item.job.status !== 'IN_PROGRESS' && item.job.status !== 'COMPLETED' && (
           <TouchableOpacity
             style={[styles.chatButton, styles.finishButton]}
             onPress={() => markJobAsFinished(item.job_id, item.id)}
@@ -311,6 +398,22 @@ export default function MyJobsScreen() {
               Marcar como Finalizado
             </Text>
           </TouchableOpacity>
+        )}
+
+        {/* Mensaje de trabajo finalizado pendiente de pago */}
+        {item.status === 'ACCEPTED' && item.job.status === 'IN_PROGRESS' && (
+          <View style={[styles.warningBadge, { backgroundColor: '#fef3c7' }]}>
+            <Ionicons name="time-outline" size={16} color="#d97706" />
+            <Text style={styles.warningText}>Trabajo finalizado - Esperando confirmación de pago</Text>
+          </View>
+        )}
+
+        {/* Mensaje de trabajo completado y pagado */}
+        {item.status === 'ACCEPTED' && item.job.status === 'COMPLETED' && (
+          <View style={[styles.warningBadge, { backgroundColor: '#d1fae5' }]}>
+            <Ionicons name="checkmark-circle-outline" size={16} color="#065f46" />
+            <Text style={[styles.warningText, { color: '#065f46' }]}>Trabajo completado y pagado</Text>
+          </View>
         )}
 
         {/* Chat Button */}

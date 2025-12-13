@@ -228,20 +228,42 @@ export default function CandidatesScreen() {
           </View>
         )}
 
-        {/* Chat disponible siempre */}
-        <TouchableOpacity
-          style={styles.chatButton}
-          onPress={() => navigation.navigate('Chat', {
-            jobId: item.job_id,
-            otherUserId: item.helper_user_id,
-            otherUserName: item.helper?.full_name || 'Candidato'
-          })}
-        >
-          <Ionicons name="chatbubble-outline" size={20} color={COLORS.primary} />
-          <Text style={styles.chatButtonText}>
-            {item.status === 'PENDING' ? 'Consultar candidato' : 'Abrir chat'}
-          </Text>
-        </TouchableOpacity>
+        {/* Mensaje cuando trabajo está finalizado */}
+        {item.status === 'ACCEPTED' && item.job?.status === 'IN_PROGRESS' && (
+          <View style={[styles.statusInfo, { backgroundColor: '#fef3c7' }]}>
+            <Ionicons name="time-outline" size={20} color="#d97706" />
+            <Text style={[styles.statusInfoText, { color: '#d97706' }]}>
+              Trabajo finalizado por el trabajador - Pendiente de confirmar pago
+            </Text>
+          </View>
+        )}
+
+        {/* Mensaje cuando trabajo está completado */}
+        {item.status === 'ACCEPTED' && item.job?.status === 'COMPLETED' && (
+          <View style={[styles.statusInfo, { backgroundColor: '#d1fae5' }]}>
+            <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
+            <Text style={[styles.statusInfoText, { color: COLORS.success }]}>
+              Trabajo completado y pagado
+            </Text>
+          </View>
+        )}
+
+        {/* Chat disponible solo si no está completado */}
+        {item.job?.status !== 'COMPLETED' && (
+          <TouchableOpacity
+            style={styles.chatButton}
+            onPress={() => navigation.navigate('Chat', {
+              jobId: item.job_id,
+              otherUserId: item.helper_user_id,
+              otherUserName: item.helper?.full_name || 'Candidato'
+            })}
+          >
+            <Ionicons name="chatbubble-outline" size={20} color={COLORS.primary} />
+            <Text style={styles.chatButtonText}>
+              {item.status === 'PENDING' ? 'Consultar candidato' : 'Abrir chat'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   };
@@ -426,6 +448,19 @@ const styles = StyleSheet.create({
     color: COLORS.danger,
     fontSize: 14,
     fontWeight: '600',
+  },
+  statusInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  statusInfoText: {
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
   },
   chatButton: {
     flexDirection: 'row',
