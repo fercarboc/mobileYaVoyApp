@@ -14,14 +14,8 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
     steps:
-      - name: Debug env
-        run: |
-          echo "URL is: [$SUPABASE_REWARDS_CRON_URL]"
-          echo "KEY length: ${#SUPABASE_SERVICE_ROLE_KEY}"
-
       - name: Call Supabase Rewards Cron
         run: |
           curl -X POST "$SUPABASE_REWARDS_CRON_URL" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             -H "Content-Type: application/json"
-
