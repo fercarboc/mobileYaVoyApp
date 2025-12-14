@@ -8,14 +8,20 @@ on:
 jobs:
   rewards-cron:
     runs-on: ubuntu-latest
+
+    env:
+      SUPABASE_REWARDS_CRON_URL: ${{ secrets.SUPABASE_REWARDS_CRON_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
     steps:
       - name: Debug env
         run: |
           echo "URL is: [$SUPABASE_REWARDS_CRON_URL]"
-          echo "KEY len: ${#SUPABASE_SERVICE_ROLE_KEY}"
+          echo "KEY length: ${#SUPABASE_SERVICE_ROLE_KEY}"
 
       - name: Call Supabase Rewards Cron
         run: |
           curl -X POST "$SUPABASE_REWARDS_CRON_URL" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             -H "Content-Type: application/json"
+
