@@ -11,6 +11,7 @@ jobs:
     steps:
       - name: Call Supabase Rewards Cron
         run: |
+          echo "Calling: $SUPABASE_REWARDS_CRON_URL"
           curl -X POST "$SUPABASE_REWARDS_CRON_URL" \
-          -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-          -H "Content-Type: application/json"
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Content-Type: application/json"
