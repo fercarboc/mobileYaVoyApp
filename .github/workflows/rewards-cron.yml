@@ -1,0 +1,16 @@
+name: Rewards Cron
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  rewards-cron:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Supabase Rewards Cron
+        run: |
+          curl -X POST "$SUPABASE_REWARDS_CRON_URL" \
+          -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+          -H "Content-Type: application/json"
